@@ -1,14 +1,14 @@
 # DataMonitor
 
-JSON 파일에 저장된 데이터 상태를 콘솔에서 실시간으로 조회·조작할 수 있는 관리자 도구 POC.
+JSON 파일에 저장된 데이터 상태를 콘솔에서 실시간으로 조회할 수 있는 관리자 도구 POC.
 
 ## 개요
 
-- JSON 파일을 감시하며 변경 시 콘솔 화면을 자동 갱신
-- 콘솔 명령어로 레코드 추가·수정·삭제·검색
+- JSON 파일을 감시하며 변경 시 콘솔 화면을 자동 갱신 (읽기 전용)
+- 콘솔 명령어로 레코드 검색
 - 외부 라이브러리 없이 Python 표준 라이브러리만 사용
 - MVC 패턴 적용 ([ConsoleMVC](https://github.com/stormv2222/ConsoleMVC-gujun.jeong-14004536) 스켈레톤 기반)
-- CRUD 레이어는 [DataPersistence](https://github.com/stormv2222/DataPersistence-gujun.jeong-14004536) 레포지토리 재사용
+- 파일 읽기 레이어는 [DataPersistence](https://github.com/stormv2222/DataPersistence-gujun.jeong-14004536) 레포지토리의 JSON I/O 재사용
 
 ## 요구 사항
 
@@ -35,7 +35,7 @@ python main.py
   [ID: 4]  name=Dave   department=Product      level=Senior
   [ID: 5]  name=Eve    department=Design       level=Senior
 
-명령어: (a)추가  (u)수정  (d)삭제  (s)검색  (q)종료
+명령어: (s)검색  (q)종료
 >
 ```
 
@@ -45,9 +45,6 @@ python main.py
 
 | 키 | 동작 |
 |---|---|
-| `a` | 레코드 추가 |
-| `u` | 레코드 수정 |
-| `d` | 레코드 삭제 |
 | `s` | 필드·값으로 검색 |
 | `q` | 종료 |
 
@@ -64,18 +61,18 @@ python main.py
 }
 ```
 
-- `next_id`: 다음 레코드에 부여할 ID (자동 관리)
-- `records`: 레코드 배열. `id`는 자동 부여되며 필드 구성은 자유롭게 정의 가능
+- `next_id`: 다음 레코드 ID (읽기 전용)
+- `records`: 레코드 배열. `id` 및 필드 구성은 파일에 저장된 값을 그대로 읽어 표시
 
 ## 아키텍처
 
 MVC 의존성 방향: `main.py` → `Controller` → (`Model`, `View`)
 
 ```
-models/record.py          — Record dataclass + RecordRepository (json_lib 파일 저장)
+models/record.py          — Record dataclass + RecordRepository (json_lib 기반 읽기 전용)
 views/monitor_view.py     — MonitorView (출력 전담)
 controllers/
-  monitor_controller.py   — MonitorController (CRUD 흐름 + 자동 갱신)
+  monitor_controller.py   — MonitorController (조회·검색 + 자동 갱신)
 app/watcher.py            — FileWatcher (파일 변경 감지, MVC 외부 인프라)
 json_lib/                 — 커스텀 JSON 파서 (lexer → parser → serializer)
 ```
