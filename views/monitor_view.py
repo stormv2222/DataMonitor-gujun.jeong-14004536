@@ -18,7 +18,7 @@ class MonitorView:
             for r in records:
                 self._print_record_inline(r)
         print()
-        print('명령어: (a)추가  (u)수정  (d)삭제  (s)검색  (q)종료')
+        print('명령어: (s)검색  (q)종료')
 
     def show_record(self, record: Record) -> None:
         print(f'[ID: {record.id}]')

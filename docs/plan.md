@@ -3,7 +3,8 @@
 ## 1. 목표
 
 현재 저장된 데이터 상태를 콘솔에서 실시간으로 조회할 수 있는 관리자 도구를 POC 형태로 구현한다.  
-CRUD 레이어는 [DataPersistence](https://github.com/stormv2222/DataPersistence-gujun.jeong-14004536) 레포지토리를 재사용하고, 전체 구조는 [ConsoleMVC](https://github.com/stormv2222/ConsoleMVC-gujun.jeong-14004536) 스켈레톤의 MVC 패턴을 따른다.
+파일 읽기 레이어는 [DataPersistence](https://github.com/stormv2222/DataPersistence-gujun.jeong-14004536) 레포지토리의 JSON I/O를 재사용하고, 전체 구조는 [ConsoleMVC](https://github.com/stormv2222/ConsoleMVC-gujun.jeong-14004536) 스켈레톤의 MVC 패턴을 따른다.  
+데이터 조작(추가·수정·삭제)은 이 도구의 범위 밖이며, 읽기 전용으로 동작한다.
 
 ---
 
@@ -14,8 +15,8 @@ CRUD 레이어는 [DataPersistence](https://github.com/stormv2222/DataPersistenc
 | 구성요소 | 역할 | 재사용 여부 |
 |---|---|---|
 | `json_lib/` | 커스텀 JSON 파서 (lexer → parser → serializer) | 그대로 복사 |
-| `app/repository.py` | JSON 파일 기반 CRUD | Model 레이어에 흡수 |
-| `app/console.py` | 메뉴 기반 CRUD 콘솔 앱 | Controller + View로 대체 |
+| `app/repository.py` | JSON 파일 기반 CRUD | 읽기 메서드만 Model 레이어에 흡수 |
+| `app/console.py` | 메뉴 기반 CRUD 콘솔 앱 | Controller + View로 대체 (조회·검색만) |
 
 **데이터 파일 구조 (`records.json`)**
 
@@ -46,9 +47,9 @@ MVC 의존성 방향: `main.py` → `Controller` → (`Model`, `View`)
 
 | MVC 레이어 | ConsoleMVC | DataMonitor |
 |---|---|---|
-| **Model** | `User` + `UserRepository` (인메모리 dict) | `Record` + `RecordRepository` (json_lib 파일 저장) |
+| **Model** | `User` + `UserRepository` (인메모리 dict) | `Record` + `RecordRepository` (json_lib 파일 읽기 전용) |
 | **View** | `UserView` | `MonitorView` (대시보드 자동 갱신 포함) |
-| **Controller** | `UserController` | `MonitorController` (CRUD + 파일 감시 기반 자동 갱신) |
+| **Controller** | `UserController` | `MonitorController` (조회·검색 + 파일 감시 기반 자동 갱신) |
 | **인프라** | — | `FileWatcher` (MVC 외부, Controller에 주입) |
 
 ---
@@ -101,17 +102,14 @@ ConsoleMVC의 `User` + `UserRepository` 패턴을 따르되, 저장소는 인메
 
 ```
 Record (dataclass)
-├── id: int          ← 자동 부여, 직접 설정 금지
+├── id: int          ← 파일에서 읽어온 값 그대로 사용
 └── (동적 필드)      ← dict로 관리 (사용자 정의 key-value)
 
-RecordRepository
+RecordRepository  ← 읽기 전용
 ├── __init__(file_path)
-├── create(fields: dict) → Record
 ├── read_all()           → list[Record]
 ├── read_one(id)         → Record | None
-├── update(id, fields)   → Record | None
-├── search(key, value)   → list[Record]
-└── delete(id)           → bool
+└── search(key, value)   → list[Record]
 ```
 
 ### View — `views/monitor_view.py`
@@ -133,12 +131,9 @@ ConsoleMVC의 `UserController`와 동일한 구조. `run()`이 메뉴 루프 진
 ```
 MonitorController
 ├── __init__(repository, view, watcher)
-├── create_record()
 ├── list_records()
-├── update_record()
-├── delete_record()
 ├── search_records()
-└── run()   ← 메뉴 루프 + 파일 변경 시 view.show_dashboard() 재호출
+└── run()   ← 메뉴 루프(s/q) + 파일 변경 시 view.show_dashboard() 재호출
 ```
 
 ### 인프라 — `app/watcher.py`
@@ -180,10 +175,10 @@ controller.run()
 
 ### Phase 2 — Model (`models/record.py`)
 
-- `Record` dataclass 구현 (`id` 자동 부여, 동적 필드는 `**kwargs` → dict)
-- `RecordRepository` 구현 (DataPersistence `Repository` 로직 기반, json_lib 사용)
+- `Record` dataclass 구현 (파일에서 읽어온 필드를 그대로 보존)
+- `RecordRepository` 구현 (DataPersistence JSON I/O 기반, 읽기 메서드만 구현)
 
-**완료 기준**: `RecordRepository`로 create/read/update/delete 각각 동작한다.
+**완료 기준**: `RecordRepository`로 read_all/read_one/search 각각 정상 동작한다.
 
 ---
 
@@ -210,10 +205,10 @@ controller.run()
 ### Phase 5 — Controller + 통합 (`controllers/monitor_controller.py`, `main.py`)
 
 - `MonitorController.__init__`: `FileWatcher`의 callback을 `view.show_dashboard()` 재호출로 연결
-- `run()`: 메뉴 루프 구현 (a/u/d/s/q)
+- `run()`: 메뉴 루프 구현 (s: 검색, q: 종료)
 - `main.py`: 레이어 Wiring
 
-**완료 기준**: `python main.py` 실행 → 대시보드 출력 → CRUD 동작 → 파일 변경 시 자동 갱신 전체 흐름이 동작한다.
+**완료 기준**: `python main.py` 실행 → 대시보드 출력 → 검색 동작 → 파일 변경 시 자동 갱신 전체 흐름이 동작한다.
 
 ---
 
@@ -222,10 +217,10 @@ controller.run()
 | Phase | 검증 방법 |
 |---|---|
 | 1 | `import json_lib` import 성공 |
-| 2 | `RecordRepository` create→read→update→delete 각각 정상 동작 |
+| 2 | `RecordRepository` read_all/read_one/search 각각 정상 동작 |
 | 3 | View 메서드 직접 호출 시 의도한 포맷 출력 |
 | 4 | records.json 수정 후 1~2초 내 callback 호출 확인 |
-| 5 | 전체 흐름: 실행 → 추가 → 수정 → 삭제 → 자동 갱신 확인 |
+| 5 | 전체 흐름: 실행 → 대시보드 조회 → 검색 → 파일 변경 시 자동 갱신 확인 |
 
 ---
 

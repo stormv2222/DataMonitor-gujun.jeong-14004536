@@ -81,7 +81,7 @@ class TestMonitorViewShowDashboard(unittest.TestCase):
 
     def test_dashboard_commands_shown(self):
         output = self._run_dashboard([])
-        self.assertIn('(a)', output)
+        self.assertIn('(s)', output)
         self.assertIn('(q)', output)
 
 
