@@ -1,0 +1,35 @@
+{
+  "next_id": 6,
+  "records": [
+    {
+      "id": 1,
+      "name": "Alice",
+      "department": "Engineering",
+      "level": "Senior"
+    },
+    {
+      "id": 2,
+      "name": "Bob",
+      "department": "Design",
+      "level": "Mid"
+    },
+    {
+      "id": 3,
+      "name": "Carol",
+      "department": "Engineering",
+      "level": "Junior"
+    },
+    {
+      "id": 4,
+      "name": "Dave",
+      "department": "Product",
+      "level": "Senior"
+    },
+    {
+      "id": 5,
+      "name": "Eve",
+      "department": "Design",
+      "level": "Senior"
+    }
+  ]
+}
